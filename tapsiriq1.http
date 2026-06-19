@@ -1,0 +1,6 @@
+@tapsiriq1_HostAddress = http://localhost:5104
+
+GET {{tapsiriq1_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

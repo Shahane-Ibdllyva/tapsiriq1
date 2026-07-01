@@ -1,5 +1,6 @@
 {
   "ExpandedNodes": [
+<<<<<<< HEAD
     "",
     "\\tapsiriq1",
     "\\tapsiriq1\\Controllers",
@@ -7,5 +8,9 @@
     "\\tapsiriq1\\Extensions"
   ],
   "SelectedNode": "\\tapsiriq1\\Program.cs",
+=======
+    ""
+  ],
+>>>>>>> a667e22a9b47b18c64b0c9e4ecc4d4b5aceecdd2
   "PreviewInSolutionExplorer": false
 }

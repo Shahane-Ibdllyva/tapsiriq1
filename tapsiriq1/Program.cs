@@ -1,3 +1,5 @@
+using tapsiriq1.Extensions;
+using Newtonsoft.Json;
 using Application;
 using Application.Mappings;
 using Infrastructure;
@@ -13,6 +15,7 @@ using System.Text.Json.Serialization; // ReferenceHandler üçün lazımdır
 using Microsoft.AspNetCore.Mvc; // JsonOptions üçün lazımdır
 using tapsiriq1.Middlewares;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. JWT AYARLARINI APPSMALL-DAN OXUYURUQ ---
@@ -25,13 +28,18 @@ builder.Services.AddHttpContextAccessor();
 
 // --- 3. CONTROLLERS VƏ SİZİN ODATA / JSON AYARLARINIZ ---
 builder.Services.AddControllers()
-    .AddJsonOptions(options => ConfigureJson(options)) // Nöqtəli vergül burdan silindi!
-    .AddOData(options =>
+    .AddNewtonsoftJson(options =>
     {
-        options.Select().Filter().OrderBy().Expand().Count(); // Ehtiyac olan funksiyaları aktiv edin
-    });
-
-
+        // NewtonsoftJson üçün sonsuz dövrə (circular reference) xətasını söndürür
+        options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+    })
+    .AddJsonOptions(options =>
+    {
+        // Sizin mərkəzi JSON (System.Text.Json) funksiyanızın daxili tənzimləmələri:
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    })
+    .ConfigureOData();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -98,7 +106,7 @@ app.UseHttpsRedirection();
 
 // OData marşrutlandırmasının ($odata) aktivləşməsi üçün bu mütləq bura əlavə olunmalıdır!
 app.UseRouting();
-
+app.UseStaticFiles(); // wwwroot qovluğunu xaricə (frontend-ə) açır
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

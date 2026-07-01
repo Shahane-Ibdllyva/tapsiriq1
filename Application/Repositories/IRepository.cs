@@ -8,6 +8,7 @@ namespace Application.Repositories
     {
         IQueryable<T> GetAll();
         Task<T?> GetByIdAsync(int id);
+        Task<T?> GetByIdAsync(Guid id);
         Task AddAsync(T entity);
         void Update(T entity);
         void Delete(T entity);

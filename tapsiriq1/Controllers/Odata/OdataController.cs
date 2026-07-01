@@ -11,19 +11,17 @@ namespace tapsiriq1.Controllers.Odata
     {
         private readonly IStudentService _studentService;
 
-        
         public OdataController(IStudentService studentService)
         {
             _studentService = studentService;
         }
 
-        [HttpPost("GetStudentExamReports")]
-        [EnableQuery] 
+        // EDM modeldə builder.Action("GetStudentExamReports") olaraq təyin etdiyimiz üçün URL avtomatik /odata/GetStudentExamReports olur
+        [HttpPost]
+        [EnableQuery]
         public IActionResult GetStudentExamReports()
         {
-            
             IQueryable<StudentExamReport> query = _studentService.GetStudentExamReportsQueryable();
-
             return Ok(query);
         }
     }

@@ -10,6 +10,7 @@ using Application.Services;
 using Application.Services.Interfaces;
 using Application.Validators;
 using FluentValidation;
+using Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application;
@@ -46,6 +47,7 @@ public static class ApplicationServiceRegistration
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IUserRoleService, UserRoleService>();
+        services.AddScoped<IAppFileService, AppFileService>();
 
         return services;
     }

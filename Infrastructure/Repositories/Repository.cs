@@ -20,6 +20,10 @@ namespace Infrastructure.Repositories
            
         }
 
+        public async Task<T?> GetByIdAsync(Guid id)
+        {
+            return await _dbSet.FindAsync(id);
+        }
         public IQueryable<T> GetAll()
         {
             // AsNoTracking() performansı artırır, çünki sadəcə oxuma ssenarilərində EF Core obyekti izləmir

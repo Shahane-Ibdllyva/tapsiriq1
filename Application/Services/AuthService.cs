@@ -33,12 +33,9 @@ namespace Application.Services
 
         public async Task<LoginResponseDto> LoginAsync(LoginDto dto)
         {
-            // 1. BÜTÜN VALİDASİYA QAYDALARINI BİR XƏTTƏ YOXLA
-            // Uğursuz olarsa ValidationException atar, middleware handle edəcək
             await _validator.ValidateAndThrowAsync(dto);
 
-            // 2. İstifadəçini tap – burada artıq heç bir if yoxlanmır,
-            // çünki validator zəmanət verir ki, user var, aktivdir və şifrə doğrudur.
+            
             var user = await _userRepository.GetByEmailAsync(dto.Email);
 
             // 3. Rolları bazadan çək
@@ -54,7 +51,7 @@ namespace Application.Services
             };
         }
 
-        // GenerateJwtToken metodu eyni qalır (heç bir dəyişiklik yoxdur)
+      
         private string GenerateJwtToken(User user, List<Role> roles)
         {
             var jwtSettings = _configuration.GetSection("Jwt");
@@ -88,7 +85,6 @@ namespace Application.Services
             return tokenHandler.WriteToken(token);
         }
 
-        // ComputeMD5Hash metodu artıq validator-da olduğu üçün buradan sildik.
-        // (İstəyə görə saxlanıla bilər, amma təkrar kodu aradan qaldırmaq üçün sildim)
+       
     }
 }

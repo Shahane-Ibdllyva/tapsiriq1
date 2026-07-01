@@ -3,7 +3,7 @@ using System;
 using System.Net;
 using System.Threading.Tasks;
 using Application.Exceptions;
-using FluentValidation; // <--- BU ƏLAVƏ EDİLDİ
+using FluentValidation;
 
 namespace tapsiriq1.Middlewares
 {

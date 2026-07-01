@@ -1,4 +1,5 @@
-﻿using Application.DTOs.Student;
+﻿using Microsoft.AspNetCore.Authorization;
+using Application.DTOs.Student;
 using Application.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Query;
@@ -17,8 +18,9 @@ namespace tapsiriq1.Controllers
             _studentService = studentService;
         }
 
-
+        
         [HttpGet("student-exams")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [EnableQuery]
         public IActionResult GetStudentExamReports()
         {

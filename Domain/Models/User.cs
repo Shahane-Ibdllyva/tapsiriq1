@@ -1,4 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using tapsiriq1.Domain.Entities;
 
 namespace Domain.Models
 {
@@ -25,5 +27,10 @@ namespace Domain.Models
 
        
         public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+
+        [ForeignKey(nameof(AppFile))]
+        public Guid? ImageId { get; set; }
+
+        public AppFile? AppFile { get; set; }
     }
 }

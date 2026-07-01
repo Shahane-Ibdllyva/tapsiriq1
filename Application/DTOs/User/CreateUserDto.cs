@@ -1,4 +1,6 @@
-﻿namespace Application.DTOs.User
+﻿using Microsoft.AspNetCore.Http;
+
+namespace Application.DTOs.User
 {
     public class CreateUserDto
     {
@@ -9,5 +11,6 @@
         public string Password { get; set; } = string.Empty;
         public int DepartmentId { get; set; }
         public int OrganizationId { get; set; }
+        public IFormFile? ProfilePicture { get; set; }
     }
 }

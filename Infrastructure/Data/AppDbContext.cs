@@ -1,11 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http; // <--- Çox vacibdir: HttpContext-ə giriş üçün
-using System.Security.Claims;    // <--- Çox vacibdir: Claims-ləri oxumaq üçün
-using Domain.Models;
+﻿using Domain.Models;
 using Domain.Models.View;
+using Microsoft.AspNetCore.Http; // <--- Çox vacibdir: HttpContext-ə giriş üçün
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Security.Claims;    // <--- Çox vacibdir: Claims-ləri oxumaq üçün
 using System.Threading;
 using System.Threading.Tasks;
-using System;
+using tapsiriq1.Domain.Entities;
 
 namespace Infrastructure.Data
 {
@@ -29,6 +30,7 @@ namespace Infrastructure.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
+        public DbSet<AppFile> AppFiles { get; set; }
 
         public override int SaveChanges()
         {

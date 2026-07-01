@@ -42,6 +42,7 @@ namespace Infrastructure.Repositories
                     Username = u.Username,
                     DepartmentId = u.DepartmentId,
                     OrganizationId = u.OrganizationId,
+                    ImageId = u.AppFile != null ? u.AppFile.Id : null
                 })
                 .ToListAsync();
         }

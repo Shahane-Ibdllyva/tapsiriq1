@@ -8,8 +8,8 @@ namespace Application.Services.Interfaces
     {
         Task<IEnumerable<UserListDto>> GetAllUsersAsync();
         Task<UserListDto?> GetUserByIdAsync(int id);
-        Task CreateUserAsync(CreateUserDto dto);
-        Task UpdateUserAsync(UpdateUserDto dto); 
+        Task CreateUserAsync(CreateUserDto dto,int currentUserId);
+        Task UpdateUserAsync(UpdateUserDto dto, int currentUserId); 
         Task DeleteUserAsync(int id);
     }
 }

@@ -79,8 +79,8 @@ namespace tapsiriq1.WebAPI.Controllers
             {
                 await _fileService.DeleteFileAsync(id, currentUserId);
 
-                // Status dəyişikliyini bazaya yaz
-                await _unitOfWork.SaveChangesAsync();
+             
+                await _unitOfWork.SaveChangesAsync();//basqa modullarda sadece bunu yazmagin kifayetdir
                 await _unitOfWork.CommitTransactionAsync();
 
                 return Ok(new { message = "Fayl uğurla soft-delete olundu (Status = Deleted)." });

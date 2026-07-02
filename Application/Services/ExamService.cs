@@ -1,6 +1,6 @@
 ﻿using Application.DTOs.Exam;
 using Application.Exceptions;
-using Application.Repositories;
+using Application.Interfaces;          
 using Application.Services.Interfaces;
 using Domain.Models;
 using FluentValidation;
@@ -10,18 +10,18 @@ namespace Application.Services
 {
     public class ExamService : IExamService
     {
-        private readonly IExamRepository _examRepository;
+        private readonly IUnitOfWork _unitOfWork;      
         private readonly IValidator<CreateExamDto> _createValidator;
         private readonly IValidator<UpdateExamDto> _updateValidator;
         private readonly IMapper _mapper;
 
         public ExamService(
-            IExamRepository examRepository,
+            IUnitOfWork unitOfWork,                   
             IValidator<CreateExamDto> createValidator,
             IValidator<UpdateExamDto> updateValidator,
             IMapper mapper)
         {
-            _examRepository = examRepository;
+            _unitOfWork = unitOfWork;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
             _mapper = mapper;
@@ -29,15 +29,13 @@ namespace Application.Services
 
         public async Task<IEnumerable<ExamDto>> GetAllExamsAsync()
         {
-            var exams = await _examRepository.GetExamsWithDetailsAsync();
-
-            // Siyahını tək sətirdə ExamDto siyahısına çeviririk
+            var exams = await _unitOfWork.Exams.GetExamsWithDetailsAsync();
             return _mapper.Map<IEnumerable<ExamDto>>(exams);
         }
 
         public async Task<ExamDto?> GetExamByIdAsync(int id)
         {
-            var exam = await _examRepository.GetExamByIdWithDetailsAsync(id);
+            var exam = await _unitOfWork.Exams.GetExamByIdWithDetailsAsync(id);
 
             if (exam == null || exam.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"ID-si {id} olan imtahan sistemdə tapılmadı!");
@@ -49,46 +47,70 @@ namespace Application.Services
         {
             await _createValidator.ValidateAndThrowAsync(dto);
 
-            // AutoMapper tətbiqi: CreateExamDto -> Exam entity
             var entity = _mapper.Map<Exam>(dto);
-
-            // DTO-da olmayan default dəyərləri əllə set edirik
             entity.Grade = dto.Grade ?? 0;
             entity.Status = EntityStatus.Active;
 
-            await _examRepository.AddAsync(entity);
-            await _examRepository.SaveChangesAsync();
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                await _unitOfWork.Exams.AddAsync(entity);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task UpdateExamAsync(UpdateExamDto dto)
         {
             await _updateValidator.ValidateAndThrowAsync(dto);
 
-            var exam = await _examRepository.GetByIdAsync(dto.ExamId);
+            var exam = await _unitOfWork.Exams.GetByIdAsync(dto.ExamId);
             if (exam == null || exam.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"Yenilənəcək {dto.ExamId} ID-li imtahan tapılmadı!");
 
-            // Mövcut Entity-nin üzərinə DTO-dan gələn dataları map edirik.
-            // Bu sətir null olmayan və ötürülən bütün dəyərləri avtomatik bərabərləşdirir.
             _mapper.Map(dto, exam);
-
             exam.UpdateDate = DateTime.UtcNow;
 
-            _examRepository.Update(exam);
-            await _examRepository.SaveChangesAsync();
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                _unitOfWork.Exams.Update(exam);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task DeleteExamAsync(int id)
         {
-            var exam = await _examRepository.GetByIdAsync(id);
+            var exam = await _unitOfWork.Exams.GetByIdAsync(id);
             if (exam == null || exam.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"Silinəcək {id} ID-li imtahan tapılmadı!");
 
             exam.Status = EntityStatus.Deleted;
             exam.UpdateDate = DateTime.UtcNow;
 
-            _examRepository.Update(exam);
-            await _examRepository.SaveChangesAsync();
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                _unitOfWork.Exams.Update(exam);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
     }
 }

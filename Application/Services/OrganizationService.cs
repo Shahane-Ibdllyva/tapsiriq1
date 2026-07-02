@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using AutoMapper; 
+using AutoMapper;
 using Application.DTOs.Organization;
 using Domain.Models;
-using Application.Repositories;
+using Application.Interfaces;          
 using Application.Services.Interfaces;
 using FluentValidation;
 using Application.Exceptions;
@@ -13,18 +13,18 @@ namespace Application.Services
 {
     public class OrganizationService : IOrganizationService
     {
-        private readonly IOrganizationRepository _organizationRepository;
+        private readonly IUnitOfWork _unitOfWork;      
         private readonly IValidator<CreateOrganizationDto> _createOrganizationValidator;
-        private readonly IValidator<UpdateOrganizationDto> _updateOrganizationValidator; 
-        private readonly IMapper _mapper; 
+        private readonly IValidator<UpdateOrganizationDto> _updateOrganizationValidator;
+        private readonly IMapper _mapper;
 
         public OrganizationService(
-            IOrganizationRepository organizationRepository,
+            IUnitOfWork unitOfWork,                    
             IValidator<CreateOrganizationDto> createOrganizationValidator,
             IValidator<UpdateOrganizationDto> updateOrganizationValidator,
             IMapper mapper)
         {
-            _organizationRepository = organizationRepository;
+            _unitOfWork = unitOfWork;
             _createOrganizationValidator = createOrganizationValidator;
             _updateOrganizationValidator = updateOrganizationValidator;
             _mapper = mapper;
@@ -32,13 +32,13 @@ namespace Application.Services
 
         public async Task<IEnumerable<OrganizationDto>> GetAllOrganizationsAsync()
         {
-            var organizations = await _organizationRepository.GetOrganizationsWithDepartmentsAsync();
+            var organizations = await _unitOfWork.Organizations.GetOrganizationsWithDepartmentsAsync();
             return _mapper.Map<IEnumerable<OrganizationDto>>(organizations);
         }
 
         public async Task<OrganizationDto?> GetOrganizationByIdAsync(int id)
         {
-            var organization = await _organizationRepository.GetOrganizationByIdWithDepartmentsAsync(id);
+            var organization = await _unitOfWork.Organizations.GetOrganizationByIdWithDepartmentsAsync(id);
 
             if (organization == null || organization.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"ID-si {id} olan təşkilat sistemdə tapılmadı!");
@@ -48,56 +48,81 @@ namespace Application.Services
 
         public async Task CreateOrganizationAsync(CreateOrganizationDto dto)
         {
-            // 1. Formal validasiya
             await _createOrganizationValidator.ValidateAndThrowAsync(dto);
 
-            // 2. Biznes məntiqi – təkrarlanan ad yoxlanışı
-            var exists = await _organizationRepository.CheckDuplicateNameAsync(dto.OrganizationName);
+            var exists = await _unitOfWork.Organizations.CheckDuplicateNameAsync(dto.OrganizationName);
             if (exists)
                 throw new ConflictException("Bu adda təşkilat artıq sistemdə mövcuddur!");
 
-            // 3. AutoMapper tətbiqi
             var organization = _mapper.Map<Organization>(dto);
+            organization.Status = EntityStatus.Active;
 
-            await _organizationRepository.AddAsync(organization);
-            await _organizationRepository.SaveChangesAsync();
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                await _unitOfWork.Organizations.AddAsync(organization);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task UpdateOrganizationAsync(UpdateOrganizationDto dto)
         {
-            // 1. Formal validasiya (UpdateValidator ilə)
             await _updateOrganizationValidator.ValidateAndThrowAsync(dto);
 
-            // 2. Təşkilatın mövcudluğu yoxlanılır
-            var organization = await _organizationRepository.GetByIdAsync(dto.OrganizationId);
+            var organization = await _unitOfWork.Organizations.GetByIdAsync(dto.OrganizationId);
             if (organization == null || organization.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"Yenilənəcək {dto.OrganizationId} ID-li təşkilat tapılmadı!");
 
-            // 3. Ad təkrarlanması yoxlaması (özündən başqa)
-            var nameExists = await _organizationRepository.CheckDuplicateNameForUpdateAsync(dto.OrganizationName, dto.OrganizationId);
+            var nameExists = await _unitOfWork.Organizations.CheckDuplicateNameForUpdateAsync(
+                dto.OrganizationName,
+                dto.OrganizationId);
             if (nameExists)
                 throw new ConflictException($"'{dto.OrganizationName}' adlı təşkilat artıq mövcuddur!");
 
-            // 4. AutoMapper ilə mövcud obyektin üzərinə yazma (Map onto existing object)
             _mapper.Map(dto, organization);
-            organization.UpdateDate = DateTime.UtcNow; // Audit üçün update tarixi
+            organization.UpdateDate = DateTime.UtcNow;
 
-            _organizationRepository.Update(organization);
-            await _organizationRepository.SaveChangesAsync();
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                _unitOfWork.Organizations.Update(organization);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task DeleteOrganizationAsync(int id)
         {
-            var organization = await _organizationRepository.GetByIdAsync(id);
+            var organization = await _unitOfWork.Organizations.GetByIdAsync(id);
             if (organization == null || organization.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"Silinəcək {id} ID-li təşkilat tapılmadı!");
 
-            // Soft delete tətbiq olunursa:
             organization.Status = EntityStatus.Deleted;
             organization.UpdateDate = DateTime.UtcNow;
 
-            _organizationRepository.Update(organization);
-            await _organizationRepository.SaveChangesAsync();
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                _unitOfWork.Organizations.Update(organization);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
     }
 }

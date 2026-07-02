@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Application.Repositories;
 using Domain.Models;
 using Infrastructure.Data;
-using Microsoft.EntityFrameworkCore; // <-- .Include() və .ToListAsync() burada qanunidir
+using Microsoft.EntityFrameworkCore; 
 
 namespace Infrastructure.Repositories
 {

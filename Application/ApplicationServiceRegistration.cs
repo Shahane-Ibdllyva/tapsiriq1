@@ -48,6 +48,7 @@ public static class ApplicationServiceRegistration
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IUserRoleService, UserRoleService>();
         services.AddScoped<IAppFileService, AppFileService>();
+      
 
         return services;
     }

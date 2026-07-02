@@ -16,24 +16,30 @@ namespace Application.Services
 {
     public class UserService : IUserService
     {
-        private readonly IUnitOfWork _unitOfWork;      // <-- UnitOfWork
+        private readonly IUnitOfWork _unitOfWork;      
         private readonly IMapper _mapper;
         private readonly IValidator<CreateUserDto> _createValidator;
         private readonly IValidator<UpdateUserDto> _updateValidator;
         private readonly IAppFileService _fileService;
+        private readonly IEmailService _emailService;
+        private readonly IEmailTemplateService _emailTemplateService;
 
         public UserService(
-            IUnitOfWork unitOfWork,                    // <-- UnitOfWork
+            IUnitOfWork unitOfWork,                   
             IMapper mapper,
             IValidator<CreateUserDto> createValidator,
             IValidator<UpdateUserDto> updateValidator,
-            IAppFileService fileService)
+            IAppFileService fileService,
+            IEmailService emailService,                    
+    IEmailTemplateService emailTemplateService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
             _fileService = fileService;
+            _emailService = emailService;
+            _emailTemplateService = emailTemplateService;
         }
 
         public async Task<IEnumerable<UserListDto>> GetAllUsersAsync()
@@ -53,7 +59,7 @@ namespace Application.Services
         {
             await _createValidator.ValidateAndThrowAsync(dto);
 
-            // Department mövcudluğu - İndi UnitOfWork üzərindən!
+            // Department mövcudluğu
             var departmentExists = await _unitOfWork.Departments.CheckDepartmentExistsAsync(dto.DepartmentId);
             if (!departmentExists)
                 throw new NotFoundException($"Daxil edilən Şöbə (ID: {dto.DepartmentId}) sistemdə tapılmadı!");
@@ -78,6 +84,22 @@ namespace Application.Services
 
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitTransactionAsync();
+
+                //  TRANSACTION UĞURLU BAŞA ÇATDI. İNDİ MAİL GÖNDƏRİK.
+                // (Test üçün await ilə göndəririk - API 5-10 saniyə gecikəcək)
+                try
+                {
+                    var fullName = $"{user.FirstName} {user.LastName}";
+                    var body = _emailTemplateService.GetWelcomeEmail(fullName, user.Username);
+                    await _emailService.SendEmailAsync(user.Email, "Xoş gəldiniz!", body, isHtml: true);
+                }
+                catch (Exception mailEx)
+                {
+                    // Mail göndərilməsə belə, istifadəçi yaradıldı. Sadəcə log yazaq.
+                    // Hələ ILogger inject etməmişiksə, Console-a yazaq.
+                    Console.WriteLine($"❌ Mail göndərilmədi: {mailEx.Message}");
+                    // İstəsəniz, burada xətanı yenidən ata bilərsiniz (throw), amma test üçün atmayaq.
+                }
             }
             catch
             {
@@ -94,7 +116,7 @@ namespace Application.Services
             if (user == null || user.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"ID-si {dto.UserId} olan istifadəçi sistemdə tapılmadı!");
 
-            // Department mövcudluğu - İndi UnitOfWork üzərindən!
+          
             var departmentExists = await _unitOfWork.Departments.CheckDepartmentExistsAsync(dto.DepartmentId);
             if (!departmentExists)
                 throw new NotFoundException($"Daxil edilən Şöbə (ID: {dto.DepartmentId}) tapılmadı!");

@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using Domain.Entities;
+using Domain.Models;
 using Domain.Models.View;
 using Microsoft.AspNetCore.Http; // <--- Çox vacibdir: HttpContext-ə giriş üçün
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,8 @@ namespace Infrastructure.Data
         public DbSet<Role> Roles { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<AppFile> AppFiles { get; set; }
+        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+
 
         public override int SaveChanges()
         {

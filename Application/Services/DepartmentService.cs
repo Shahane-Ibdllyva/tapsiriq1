@@ -1,6 +1,6 @@
 ﻿using Application.DTOs.Department;
 using Application.Exceptions;
-using Application.Repositories;
+using Application.Interfaces;           // <-- IUnitOfWork üçün
 using Application.Services.Interfaces;
 using AutoMapper;
 using Domain.Models;
@@ -10,21 +10,18 @@ namespace Application.Services
 {
     public class DepartmentService : IDepartmentService
     {
-        private readonly IDepartmentRepository _departmentRepository;
-        private readonly IOrganizationRepository _organizationRepository;
+        private readonly IUnitOfWork _unitOfWork;     
         private readonly IValidator<CreateDepartmentDto> _createValidator;
         private readonly IValidator<UpdateDepartmentDto> _updateValidator;
         private readonly IMapper _mapper;
 
         public DepartmentService(
-            IDepartmentRepository departmentRepository,
-            IOrganizationRepository organizationRepository,
+            IUnitOfWork unitOfWork,                    
             IValidator<CreateDepartmentDto> createValidator,
             IValidator<UpdateDepartmentDto> updateValidator,
             IMapper mapper)
         {
-            _departmentRepository = departmentRepository;
-            _organizationRepository = organizationRepository;
+            _unitOfWork = unitOfWork;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
             _mapper = mapper;
@@ -32,12 +29,12 @@ namespace Application.Services
 
         public async Task<IEnumerable<DepartmentListDto>> GetAllDepartmentsAsync()
         {
-            return await _departmentRepository.GetActiveDepartmentsDtoAsync();
+            return await _unitOfWork.Departments.GetActiveDepartmentsDtoAsync();
         }
 
         public async Task<Department?> GetDepartmentByIdAsync(int id)
         {
-            var department = await _departmentRepository.GetDepartmentWithDetailsAsync(id);
+            var department = await _unitOfWork.Departments.GetDepartmentWithDetailsAsync(id);
 
             if (department == null || department.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"ID-si {id} olan şöbə sistemdə tapılmadı!");
@@ -47,29 +44,44 @@ namespace Application.Services
 
         public async Task CreateDepartmentAsync(CreateDepartmentDto dto)
         {
-          
             await _createValidator.ValidateAndThrowAsync(dto);
 
-            var department = _mapper.Map<Department>(dto);
+            // Organization mövcudluğu (əgər varsa)
+            var orgExists = await _unitOfWork.Organizations.ExistsAsync(dto.OrganizationId);
+            if (!orgExists) throw new NotFoundException($"Təşkilat (ID: {dto.OrganizationId}) sistemdə tapılmadı!");
 
-            await _departmentRepository.AddAsync(department);
-            await _departmentRepository.SaveChangesAsync();
+            var department = _mapper.Map<Department>(dto);
+            department.Status = EntityStatus.Active;
+
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                await _unitOfWork.Departments.AddAsync(department);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task UpdateDepartmentAsync(UpdateDepartmentDto dto)
         {
-          
-        
             await _updateValidator.ValidateAndThrowAsync(dto);
 
-          
-            var department = await _departmentRepository.GetByIdAsync(dto.DepartmentId);
+            var department = await _unitOfWork.Departments.GetByIdAsync(dto.DepartmentId);
             if (department == null || department.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"Yenilənəcək {dto.DepartmentId} ID-li şöbə tapılmadı!");
 
-            dto.DepartmentName = dto.DepartmentName?.Trim(); 
-        
-            var isDuplicate = await _departmentRepository.CheckDuplicateForUpdateAsync(
+            // Organization mövcudluğu (əgər varsa)
+            var orgExists = await _unitOfWork.Organizations.ExistsAsync(dto.OrganizationId);
+            if (!orgExists) throw new NotFoundException($"Təşkilat (ID: {dto.OrganizationId}) sistemdə tapılmadı!");
+
+            dto.DepartmentName = dto.DepartmentName?.Trim();
+
+            var isDuplicate = await _unitOfWork.Departments.CheckDuplicateForUpdateAsync(
                 dto.OrganizationId,
                 dto.DepartmentName,
                 dto.DepartmentId);
@@ -80,19 +92,41 @@ namespace Application.Services
             _mapper.Map(dto, department);
             department.UpdateDate = DateTime.UtcNow;
 
-            _departmentRepository.Update(department);
-            await _departmentRepository.SaveChangesAsync();
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                _unitOfWork.Departments.Update(department);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task DeleteDepartmentAsync(int id)
         {
-            var department = await _departmentRepository.GetByIdAsync(id);
+            var department = await _unitOfWork.Departments.GetByIdAsync(id);
             if (department == null || department.Status == EntityStatus.Deleted)
                 throw new NotFoundException($"Silinəcək {id} ID-li şöbə tapılmadı!");
 
             department.Status = EntityStatus.Deleted;
-            _departmentRepository.Update(department);
-            await _departmentRepository.SaveChangesAsync();
+            department.UpdateDate = DateTime.UtcNow;
+
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                _unitOfWork.Departments.Update(department);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
     }
 }
